@@ -118,30 +118,55 @@ residuals["ascending"].append(frames["ascending"]["ifg_aps"][0]-deformation_from
 residuals["descending"].append(frames["descending"]["ifg_aps"][0]-deformation_from_0(frames["descending"]["day"],*fits["descending"][0][0]))
 residuals["descending"].append(frames["descending"]["ifg_aps"][0]-deformation_from_v1(frames["descending"]["day"],*fits["descending"][1][0]))
 
-frames={"ascending":get_average_deformation(ascendingFrame),"descending":get_average_deformation(descendingFrame)} #the ascending and descending frame
-fits={"ascending":[], "descending":[]}#keeps the results of fitting. Stores output of scipy.optimize.curve_fit() in fits[track][initalDef] where track is the string "ascending" or "descending" and initalDef is 0 for fitting with no initial deformation and 1 is fitting that considers a non-0 deformation rate defore onset time
+#A linspace to plot the fit
+timeAxis=np.linspace(np.min(frames["ascending"]["day"]),np.max(frames["ascending"]["day"]),1000)
 
-fits["ascending"].append(curve_fit(deformation_from_0,frames["ascending"]["day"],frames["ascending"]["ifg_aps"][0],[800,-1/250,1]))
-fits["ascending"].append(curve_fit(deformation_from_v1,frames["ascending"]["day"],frames["ascending"]["ifg_aps"][0],[800,-1/250,1,0]))
+#Create figure for fits and resudals
+fig, ax = plt.subplots(4,2,figsize=(16, 16))
 
-fits["descending"].append(curve_fit(deformation_from_0,frames["descending"]["day"],frames["descending"]["ifg_aps"][0],[800,-1/250,1]))
-fits["descending"].append(curve_fit(deformation_from_v1,frames["descending"]["day"],frames["descending"]["ifg_aps"][0],[800,-1/250,1,0]))
+#setting up parameters ready for the loop
+trackDirec=("ascending","descending")#the ascending and descending track
+labels=("Fit with no initial displacement","Fit with initial displacement")#The label for the graphs of the fits
 
-errors={"ascending":[], "descending":[]}#errors of fitting calculated from covarience will be stored in here
+minOf={"ascending":min(frames["ascending"]["ifg_aps"][0]),"descending":min(frames["descending"]["ifg_aps"][0])}#The minimum of the timeseries to draw the verticle lines
+maxOf={"ascending":max(frames["ascending"]["ifg_aps"][0]),"descending":max(frames["descending"]["ifg_aps"][0])}
 
-errors["ascending"].append(np.sqrt(np.diag(fits["ascending"][0][1])))
-errors["ascending"].append(np.sqrt(np.diag(fits["ascending"][1][1])))
+onsetTimes={"ascending":[882,685],"descending":[875,678]}#The days of the EQ and the onset predicted by Lui et al., for the veritlae lines below
 
-errors["descending"].append(np.sqrt(np.diag(fits["descending"][0][1])))
-errors["descending"].append(np.sqrt(np.diag(fits["descending"][1][1])))
+for i in range(len(trackDirec)):
+    direc=trackDirec[i]#Current direction
+    for fitToInitial in (0,1):
+        
+        #Plot Deformation
+        
+        axIndex = i*2+fitToInitial#Which index is this graph in ax
+        fitLabel = labels[fitToInitial]#The label for the fit
+        
+        ax[axIndex][0].set_title("Average Deformation over Socompa for Ascending Track")
+        ax[axIndex][0].set_xlabel("Time since First Epoc (days)")
+        ax[axIndex][0].set_ylabel("LOS Displacement (mm)?")
+        ax[axIndex][0].plot(frames[direc]["day"],frames[direc]["ifg_aps"][0],".")
+        if not fitToInitial:#Does this fit have no initial deforation or (else) does it have an initial deformation
+            ax[axIndex][0].plot(timeAxis,deformation_from_0(timeAxis,*fits[direc][fitToInitial][0]),label=fitLabel)
+        else:
+            ax[axIndex][0].plot(timeAxis,deformation_from_v1(timeAxis,*fits[direc][fitToInitial][0]),label=fitLabel)
+        ax[axIndex][0].vlines(onsetTimes[direc][0],minOf[direc],maxOf[direc],"c","dashed", label="M6.8 Earthquake")
+        ax[axIndex][0].vlines(onsetTimes[direc][1],minOf[direc],maxOf[direc],"g","dashed", label="Liu et al. onset time")
+        ax[axIndex][0].legend()       
+        
+        #Plot Residuals
+        
+        x=frames[direc]["day"]
+        y=residuals[direc][fitToInitial]
+        ax[axIndex][1].set_title("Residual")
+        ax[axIndex][1].set_xlabel("Time since First Epoc (days)")
+        ax[axIndex][1].set_ylabel("Residual (mm)?")
+        ax[axIndex][1].plot(x,y, "dimgray")
+        ax[axIndex][1].fill_between(x, y, where=(y > 0), color='blue', alpha=0.5)
+        ax[axIndex][1].fill_between(x, y, where=(y < 0), color='red', alpha=0.5)
 
-residuals={"ascending":[],"descending":[]}#residuals from the fittings
-
-residuals["ascending"].append(frames["ascending"]["ifg_aps"][0]-deformation_from_0(frames["ascending"]["day"],*fits["ascending"][0][0]))
-residuals["ascending"].append(frames["ascending"]["ifg_aps"][0]-deformation_from_v1(frames["ascending"]["day"],*fits["ascending"][1][0]))
-
-residuals["descending"].append(frames["descending"]["ifg_aps"][0]-deformation_from_0(frames["descending"]["day"],*fits["descending"][0][0]))
-residuals["descending"].append(frames["descending"]["ifg_aps"][0]-deformation_from_v1(frames["descending"]["day"],*fits["descending"][1][0]))
+plt.tight_layout()  # Adjust layout to prevent overlap
+plt.show()
 
 #Original code to plot deformation without residuals
 
